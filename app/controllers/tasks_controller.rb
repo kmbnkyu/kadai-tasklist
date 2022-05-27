@@ -1,24 +1,28 @@
 class TasksController < ApplicationController
-  before_action :set_task, only: [:show, :edit, :update, :destroy]
+  before_action :require_user_logged_in, only: [:new, :create, :update, :destroy]
+  before_action :correct_user, only: [:show, :edit, :update, :destroy]
 
   def index
-    @pagy, @tasks = pagy(Task.order(id: :desc), items: 10)
+    if logged_in?
+    @pagy, @tasks = pagy(current_user.tasks.order(id: :desc), items: 10)
+    end
   end
 
   def show
   end
 
   def new
-    @task = Task.new
+    @task = current_user.tasks.build
   end
 
   def create
-     @task = Task.new(task_params)
+     @task = current_user.tasks.build(task_params)
 
     if @task.save
       flash[:success] = '新しいタスクが作成されました'
       redirect_to @task
     else
+      @pagy, @tasks = pagy(current_user.tasks.order(id: :desc), items: 10)
       flash.now[:danger] = 'タスクが作成されませんでした'
       render :new
     end
@@ -40,18 +44,22 @@ class TasksController < ApplicationController
   def destroy
     @task.destroy
 
-    flash[:success] = 'タスクは正常に削除されました'
-    redirect_to tasks_url
+    flash[:success] = 'タスクを削除しました'
+    redirect_back(fallback_location: root_path)
   end
   
   private
   
-  def set_task
-    @task = Task.find(params[:id])
-  end
 
   # Strong Parameter
   def task_params
     params.require(:task).permit(:content, :status)
+  end
+  
+  def correct_user
+    @task = current_user.tasks.find_by(id: params[:id])
+    unless @task
+      redirect_to root_url
+    end
   end
 end
